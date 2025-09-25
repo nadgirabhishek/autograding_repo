@@ -1,0 +1,30 @@
+# renode/stm32f0_nucleo.resc
+# Headless: load STM32F0 platform, student ELF at ./elf/firmware.elf, log PA5, run 10s
+
+using sysbus
+mach create "stm32f0_nucleo"
+
+# Try a couple of common platforms (adjust if needed for your Renode version)
+try
+  machine LoadPlatformDescription @platforms/boards/stm32f0_discovery.repl
+catch
+  machine LoadPlatformDescription @platforms/cpus/stm32f0.repl
+end
+
+# Load student's ELF (CI copies it to ./elf/firmware.elf)
+sysbus LoadELF @elf/firmware.elf
+
+# Deterministic virtual time
+emulation SetGlobalQuantum "100us"
+
+# Attach GPIO analyzer on Port A, Pin 5 (Nucleo LD2 / Arduino D13 on many boards)
+# Different platform files may name the peripheral differently; try both
+try
+  emulation CreateGPIOAnalyzer "GPIOA" 5 "out/renode_gpio_log.csv"
+catch
+  emulation CreateGPIOAnalyzer "gpioPortA" 5 "out/renode_gpio_log.csv"
+end
+
+# Run for 10 seconds of simulated time
+emulation RunFor "10s"
+quit
