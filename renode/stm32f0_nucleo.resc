@@ -1,45 +1,18 @@
-# Headless STM32F0 run: load platform, load ELF, log GPIOA access, run 10s
-# This version uses absolute paths that exist in the Renode Docker image.
-
-logFile @out/renode_monitor.log
-logLevel 0
-
 using sysbus
-mach create "stm32f0_nucleo"
 
-# --- Load a platform description ---
-# Try board REPL first, then a CPU-level REPL as fallback.
-# Paths below are valid inside the antmicro/renode:latest container.
-try
-  machine LoadPlatformDescription @/opt/renode/platforms/boards/stm32f0_discovery.repl
-  echo "Loaded: boards/stm32f0_discovery.repl"
-catch
-  machine LoadPlatformDescription @/opt/renode/platforms/cpus/stm32f0.repl
-  echo "Loaded: cpus/stm32f0.repl"
-end
+# --- Log to the file the grader expects ---
+logFile @ out/renode_monitor.log
 
-# --- Load the student's ELF ---
-sysbus LoadELF @elf/firmware.elf
-echo "ELF loaded."
+# --- Platform & ELF ---
+mach create "f0"
+machine LoadPlatformDescription @/opt/renode/platforms/cpus/stm32f042.repl
+sysbus LoadELF @/workspace/elf/firmware.elf
 
-# --- Make time deterministic ---
-emulation SetGlobalQuantum "100us"
+# Optional: be explicit about GPIO logging noise (grader parses these lines)
+# You can comment the next line out, but it helps ensure writes are printed.
+sysbus LogPeripheralAccess gpioPortA
 
-# --- Useful diagnostics to the monitor log ---
-peripherals
-logLevel -1 sysbus
-
-# --- Log all accesses to GPIOA (name can be gpioPortA or GPIOA depending on REPL) ---
-# Direct to the monitor log file we opened above.
-try
-  sysbus LogPeripheralAccess sysbus.gpioPortA True
-  echo "Logging GPIO as sysbus.gpioPortA"
-catch
-  sysbus LogPeripheralAccess sysbus.GPIOA True
-  echo "Logging GPIO as sysbus.GPIOA"
-end
-
-# --- Run and quit ---
-emulation RunFor "10s"
-echo "Run finished."
+# Run long enough for at least a few LED toggles (e.g., 3 seconds)
+start
+sleep 3
 quit
