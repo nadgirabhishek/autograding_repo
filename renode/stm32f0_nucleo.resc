@@ -1,15 +1,13 @@
 using sysbus
-
-# Write the monitor log where the grader expects it (folder must exist in repo)
 logFile @ /workspace/out/renode_monitor.log
 
 mach create "f0"
 machine LoadPlatformDescription @/opt/renode/platforms/cpus/stm32f042.repl
 sysbus LoadELF @/workspace/elf/firmware.elf
 
-# Log GPIOA accesses (the grader parses these)
+# GPIOA access logging for the grader
 sysbus LogPeripheralAccess gpioPortA
 
 start
-sleep 5   # give it time to toggle a few times
+sleep 5
 quit
