@@ -1,30 +1,45 @@
-# renode/stm32f0_nucleo.resc
-# Headless: load STM32F0 platform, student ELF at ./elf/firmware.elf, log PA5, run 10s
+# Headless STM32F0 run: load platform, load ELF, log GPIOA access, run 10s
+# This version uses absolute paths that exist in the Renode Docker image.
+
+logFile @out/renode_monitor.log
+logLevel 0
 
 using sysbus
 mach create "stm32f0_nucleo"
 
-# Try a couple of common platforms (adjust if needed for your Renode version)
+# --- Load a platform description ---
+# Try board REPL first, then a CPU-level REPL as fallback.
+# Paths below are valid inside the antmicro/renode:latest container.
 try
-  machine LoadPlatformDescription @platforms/boards/stm32f0_discovery.repl
+  machine LoadPlatformDescription @/opt/renode/platforms/boards/stm32f0_discovery.repl
+  echo "Loaded: boards/stm32f0_discovery.repl"
 catch
-  machine LoadPlatformDescription @platforms/cpus/stm32f0.repl
+  machine LoadPlatformDescription @/opt/renode/platforms/cpus/stm32f0.repl
+  echo "Loaded: cpus/stm32f0.repl"
 end
 
-# Load student's ELF (CI copies it to ./elf/firmware.elf)
+# --- Load the student's ELF ---
 sysbus LoadELF @elf/firmware.elf
+echo "ELF loaded."
 
-# Deterministic virtual time
+# --- Make time deterministic ---
 emulation SetGlobalQuantum "100us"
 
-# Attach GPIO analyzer on Port A, Pin 5 (Nucleo LD2 / Arduino D13 on many boards)
-# Different platform files may name the peripheral differently; try both
+# --- Useful diagnostics to the monitor log ---
+peripherals
+logLevel -1 sysbus
+
+# --- Log all accesses to GPIOA (name can be gpioPortA or GPIOA depending on REPL) ---
+# Direct to the monitor log file we opened above.
 try
-  emulation CreateGPIOAnalyzer "GPIOA" 5 "out/renode_gpio_log.csv"
+  sysbus LogPeripheralAccess sysbus.gpioPortA True
+  echo "Logging GPIO as sysbus.gpioPortA"
 catch
-  emulation CreateGPIOAnalyzer "gpioPortA" 5 "out/renode_gpio_log.csv"
+  sysbus LogPeripheralAccess sysbus.GPIOA True
+  echo "Logging GPIO as sysbus.GPIOA"
 end
 
-# Run for 10 seconds of simulated time
+# --- Run and quit ---
 emulation RunFor "10s"
+echo "Run finished."
 quit
